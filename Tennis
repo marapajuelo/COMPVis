@@ -1,0 +1,71 @@
+%1b
+RGB = imread("tennis.jpg");
+figure; imshow(RGB);
+%1c
+% step 2: threshold the image
+I = im2gray(RGB);
+Iblur = imgaussfilt(I, 2);
+%bw = imbinarize(Iblur);
+T = 225;
+bw = Iblur > T;
+figure; imshow(bw);
+%step 3: processing the image
+minSize = 30;
+bw = bwareaopen(bw,minSize);
+figure; imshow(bw); title("Binary Image After Noise Removal");
+bw = bwareaopen(bw, 200);
+%break the lines and racket from the balls
+bw = imerode(bw, strel('disk', 20));
+%restore ball size (but not lines)
+bw = imdilate(bw, strel('disk', 27));
+%smooth ball edges and fill in cracks
+bw = imclose(bw, strel('disk', 25));
+%fill holes inside balls
+bw = imfill(bw, 'holes');
+figure; imshow(bw)
+%step 4: find the boundaries
+[B,L] = bwboundaries(bw,"noholes");
+figure; imshow(label2rgb(L,@jet,[.5 .5 .5]))
+hold on
+for k = 1:length(B)
+boundary = B{k};
+plot(boundary(:,2),boundary(:,1),"w",LineWidth=2)
+end
+title("Objects with Boundaries in White")
+%step 5: determine which objects are round
+stats = regionprops(L,"Circularity","Centroid");
+threshold = 0.94;
+for k = 1:length(B)
+%obtain (X,Y) boundary coordinates corresponding to label "k"
+boundary = B{k};
+%obtain the circularity corresponding to label "k"
+circ_value = stats(k).Circularity;
+%display the results
+circ_string = sprintf("%2.2f",circ_value);
+%mark objects above the threshold with a black circle
+if circ_value > threshold
+centroid = stats(k).Centroid;
+plot(centroid(1),centroid(2),"ko");
+end
+text(boundary(1,2)-35,boundary(1,1)+13,circ_string,Color="g",...
+FontSize=14,FontWeight="bold")
+end
+title("Centroids of Circular Objects and Circularity Values")
+figure; imshow(RGB); hold on;
+title("Detected Circular Objects on Original Image");
+for k = 1:length(B)
+boundary = B{k};
+circ_value = stats(k).Circularity;
+%only mark objects that pass your circularity threshold
+if circ_value > threshold
+centroid = stats(k).Centroid;
+%draw boundary on original image
+plot(boundary(:,2), boundary(:,1), 'g', 'LineWidth', 2);
+%mark centroid
+plot(centroid(1), centroid(2), 'go', 'MarkerFaceColor', 'y',
+'MarkerSize', 8);
+%add circularity text
+text(centroid(1)+10, centroid(2), sprintf('%0.2f', circ_value), ...
+'Color','yellow','FontSize',14,'FontWeight','bold');
+end
+end
